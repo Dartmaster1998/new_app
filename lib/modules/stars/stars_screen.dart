@@ -4,11 +4,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_bid/core/base/app_state.dart';
 import 'package:quick_bid/core/enums/enums.dart';
+import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/modules/artists/cubit/artists_cubit.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
-import 'package:quick_bid/modules/homepage/widgets/actor_card.dart';
+import 'package:quick_bid/modules/artists/widgets/actor_card.dart';
 import 'package:quick_bid/modules/homepage/widgets/toggle_button.dart';
-import 'package:quick_bid/core/theme/app_provider.dart';
+import 'package:quick_bid/l10n/app_localizations.dart';
 
 class StarsScreen extends StatefulWidget {
   const StarsScreen({super.key});
@@ -35,6 +36,9 @@ class _StarsScreenState extends State<StarsScreen>
     _widthAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    // Загружаем артистов при инициализации
+    context.read<ArtistsCubit>().fetchArtists();
   }
 
   @override
@@ -59,7 +63,7 @@ class _StarsScreenState extends State<StarsScreen>
   @override
   Widget build(BuildContext context) {
     final appProvider = context.watch<AppProvider>();
-    final langCode = appProvider.locale.languageCode; // 'ru', 'ky', 'en'
+    final langCode = appProvider.locale.languageCode;
     final isDark = appProvider.themeMode == ThemeMode.dark;
 
     final titleText = {
@@ -145,7 +149,7 @@ class _StarsScreenState extends State<StarsScreen>
           SizedBox(height: 10.h),
 
           /// 🔹 Фильтр категорий с вкладкой "Все"
-          BlocBuilder<ArtistsCubit, AppState<List<ArtistsEntity>>>(
+          BlocBuilder<ArtistsCubit, AppState<List<ArtistEntity>>>(
             builder: (context, state) {
               if (state.status != StateStatus.success || state.model == null) {
                 return const SizedBox.shrink();
@@ -155,7 +159,7 @@ class _StarsScreenState extends State<StarsScreen>
               final categories = <String>{};
 
               for (var a in artists) {
-                final cat = a.category[langCode] ?? a.category['en'] ?? '';
+                final cat = a.category.name.getByLang(langCode);
                 if (cat.isNotEmpty) categories.add(cat);
               }
 
@@ -193,14 +197,18 @@ class _StarsScreenState extends State<StarsScreen>
 
           /// 🔹 Сетка артистов
           Expanded(
-            child: BlocBuilder<ArtistsCubit, AppState<List<ArtistsEntity>>>(
+            child: BlocBuilder<ArtistsCubit, AppState<List<ArtistEntity>>>(
               builder: (context, state) {
                 if (state.status == StateStatus.loading) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (state.status == StateStatus.error) {
-                  return Center(child: Text("Ошибка: ${state.error}"));
+                  return Center(
+                      child: Text(
+                    "Ошибка: ${state.error}",
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                  ));
                 }
 
                 if (state.status == StateStatus.success &&
@@ -212,16 +220,11 @@ class _StarsScreenState extends State<StarsScreen>
                   final filteredArtists = allArtists.where((artist) {
                     final categoryMatch = selectedCategory == null
                         ? true
-                        : (artist.category[langCode] ??
-                                artist.category['en'] ??
-                                '') ==
+                        : artist.category.name.getByLang(langCode) ==
                             selectedCategory;
 
-                    final name = (artist.name[langCode] ??
-                            artist.name['en'] ??
-                            '')
-                        .toLowerCase();
-                    final searchMatch = name.contains(searchQuery.toLowerCase());
+                    final name = artist.name.getByLang(langCode).toLowerCase();
+                    final searchMatch = name.contains(searchQuery);
 
                     return categoryMatch && searchMatch;
                   }).toList();

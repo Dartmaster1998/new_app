@@ -6,12 +6,12 @@ import 'package:quick_bid/modules/stars/stars_screen.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
 import 'package:quick_bid/modules/homepage/presentation/home__page.dart';
-import 'package:quick_bid/modules/lots/lots_page.dart';
+import 'package:quick_bid/modules/lots/presentation/lots_page.dart';
 import 'package:quick_bid/modules/profile/profile_screen.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 
 class MainLayoutScreen extends StatefulWidget {
-  final ArtistsEntity? artistToShow;
+  final ArtistEntity? artistToShow;
 
   const MainLayoutScreen({super.key, this.artistToShow});
 

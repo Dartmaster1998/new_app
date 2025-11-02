@@ -3,17 +3,17 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
-import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 import 'package:go_router/go_router.dart';
+import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 
 class ActorCard extends StatelessWidget {
-  final ArtistsEntity artist;
-  final double photoHeight; // <--- новый параметр для высоты фото
+  final ArtistEntity artist;
+  final double photoHeight;
 
   const ActorCard({
     super.key,
     required this.artist,
-    this.photoHeight = 120, // дефолтное значение 120
+    this.photoHeight = 120,
   });
 
   @override
@@ -23,18 +23,18 @@ class ActorCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[700];
-    final lotTextColor = isDark ? const Color.fromARGB(255, 230, 137, 8) : const Color.fromARGB(255, 230, 137, 8);
+    final lotTextColor = const Color.fromARGB(255, 230, 137, 8);
 
     final lotCount = artist.lots.length;
     final langCode = app.locale.languageCode;
-    final name = _getLangText(artist.name, langCode);
-    final category = _getLangText(artist.category, langCode);
+    final name = artist.name.getByLang(langCode);
+    final category = artist.category.name.getByLang(langCode);
 
     return GestureDetector(
       onTap: () => context.push('/artist-detail', extra: artist),
       child: Container(
         width: 120.w,
-        height: photoHeight + 60.h, // высота контейнера зависит от фото
+        height: photoHeight + 60.h,
         decoration: BoxDecoration(
           color: isDark ? Colors.grey[900] : Colors.white,
           borderRadius: BorderRadius.circular(10.r),
@@ -49,11 +49,11 @@ class ActorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Фото артиста
+            // Фото артиста с индикатором загрузки
             Container(
               margin: EdgeInsets.all(6.w),
               width: double.infinity,
-              height: photoHeight.h, // используем параметр
+              height: photoHeight.h,
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(8.r),
@@ -63,6 +63,17 @@ class ActorCard extends StatelessWidget {
                 child: Image.network(
                   artist.photo,
                   fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
                   errorBuilder: (_, __, ___) =>
                       const Icon(Icons.person, size: 40),
                 ),
@@ -98,7 +109,7 @@ class ActorCard extends StatelessWidget {
                   SizedBox(
                     height: 16.h,
                     child: Text(
-                      "$lotCount ${loc!.acitvlots??""}.",
+                      "$lotCount ${loc!.acitvlots ?? ""}.",
                       style: TextStyle(fontSize: 12.sp, color: lotTextColor),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -110,9 +121,5 @@ class ActorCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _getLangText(Map<String, String> map, String langCode) {
-    return map[langCode] ?? map['en'] ?? '';
   }
 }

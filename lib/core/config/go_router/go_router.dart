@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 import 'package:quick_bid/modules/artists/presentation/artists_page.dart';
 import 'package:quick_bid/modules/bottom_navigation/main_laoyt_screen.dart';
-import 'package:quick_bid/modules/lots/lot_detail_screen.dart';
+import 'package:quick_bid/modules/lots/presentation/lot_detail_screen.dart';
 import 'package:quick_bid/modules/payment/payment_screen.dart';
 import 'package:quick_bid/modules/profile/widgets/public_offer.dart';
 import 'package:quick_bid/modules/splash_screen/splash_screen.dart';
@@ -22,7 +22,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/artist-detail',
       builder: (context, state) {
-        final artist = state.extra as ArtistsEntity;
+        final artist = state.extra as ArtistEntity;
         return ArtistDetailScreen(artist: artist);
       },
     ),

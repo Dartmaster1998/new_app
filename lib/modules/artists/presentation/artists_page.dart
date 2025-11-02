@@ -4,10 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
-import 'package:quick_bid/modules/homepage/widgets/lot_card.dart';
+import 'package:quick_bid/modules/lots/widgets/lot_card.dart';
 
 class ArtistDetailScreen extends StatelessWidget {
-  final ArtistsEntity artist;
+  final ArtistEntity artist;
 
   const ArtistDetailScreen({super.key, required this.artist});
 
@@ -15,8 +15,7 @@ class ArtistDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final langCode = app.locale.languageCode; // 'ru', 'ky', 'en'
-    final name = artist.name[langCode] ?? artist.name['en'] ?? '';
-    final description = artist.description[langCode] ?? artist.description['en'] ?? '';
+    final name = artist.name.getByLang(langCode);
 
     return Scaffold(
       appBar: AppBar(title: Text(name)),
@@ -37,8 +36,6 @@ class ArtistDetailScreen extends StatelessWidget {
             ),
             SizedBox(height: 16.h),
             Text(name, style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8.h),
-            Text(description, style: TextStyle(fontSize: 15.sp, color: Colors.grey.shade700)),
             SizedBox(height: 20.h),
             const Divider(),
             SizedBox(height: 10.h),

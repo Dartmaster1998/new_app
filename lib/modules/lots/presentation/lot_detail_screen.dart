@@ -1,18 +1,18 @@
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
+import 'package:quick_bid/modules/localized_text/localized_text.dart';
+import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
 import 'package:quick_bid/modules/payment/widgets/payment_dialog_widget.dart';
-import 'package:go_router/go_router.dart';
 
 class LotDetailScreen extends StatefulWidget {
-  final Lot lot;
-  final ArtistsEntity artist;
+  final LotEntity lot;
+  final ArtistEntity artist;
 
   const LotDetailScreen({super.key, required this.lot, required this.artist});
 
@@ -30,9 +30,9 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
     final langCode = app.locale.languageCode;
     final loc = AppLocalizations.of(context)!;
 
-    String getText(Map<String, String>? map) {
-      if (map == null) return '';
-      return map[langCode] ?? map['en'] ?? '';
+    String getText(LocalizedText? text) {
+      if (text == null) return '';
+      return text.getByLang(langCode);
     }
 
     return Scaffold(
@@ -42,7 +42,7 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
         title: Text(
-          getText(widget.lot.title),
+          getText(widget.lot.name),
           style: TextStyle(
             color: isDark ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
@@ -55,59 +55,56 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Галерея фото
-            if (widget.lot.photos.isNotEmpty)
+            if (widget.lot.photo.isNotEmpty)
               Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
-                  CarouselSlider.builder(
-                    itemCount: widget.lot.photos.length,
-                    options: CarouselOptions(
-                      height: 300.h,
-                      enableInfiniteScroll: false,
-                      enlargeCenterPage: true,
-                      viewportFraction: 1.0,
-                      onPageChanged: (index, reason) {
+                  SizedBox(
+                    height: 300.h,
+                    child: PageView.builder(
+                      itemCount: widget.lot.photo.length,
+                      onPageChanged: (index) {
                         setState(() {
                           currentIndex = index;
                         });
                       },
-                    ),
-                    itemBuilder: (context, index, realIndex) {
-                      final imageUrl = widget.lot.photos[index];
-                      return GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PhotoViewPage(
-                              imageUrl: imageUrl,
-                              isDark: isDark,
+                      itemBuilder: (context, index) {
+                        final imageUrl = widget.lot.photo[index];
+                        return GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PhotoViewPage(
+                                imageUrl: imageUrl,
+                                isDark: isDark,
+                              ),
                             ),
                           ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12.r),
-                          child: Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.image, size: 60),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12.r),
+                            child: Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.image, size: 60),
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                  // Индикатор только если фото > 1
-                  if (widget.lot.photos.length > 1)
+                  if (widget.lot.photo.length > 1)
                     Container(
                       margin: EdgeInsets.only(bottom: 8.h),
-                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                       decoration: BoxDecoration(
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Text(
-                        "${currentIndex + 1}/${widget.lot.photos.length}",
+                        "${currentIndex + 1}/${widget.lot.photo.length}",
                         style: TextStyle(color: Colors.white, fontSize: 12.sp),
                       ),
                     ),
@@ -117,7 +114,7 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
 
             // Название
             Text(
-              getText(widget.lot.title),
+              getText(widget.lot.name),
               style: TextStyle(
                 fontSize: 20.sp,
                 fontWeight: FontWeight.bold,
@@ -135,7 +132,7 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
 
             // Цена
             Text(
-              "${widget.lot.startingPrice} ${loc.som}",
+              "${widget.lot.price} ${loc.som}",
               style: TextStyle(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
@@ -145,21 +142,22 @@ class _LotDetailScreenState extends State<LotDetailScreen> {
             SizedBox(height: 16.h),
 
             // Описание
-            MarkdownBody(
-              data: getText(widget.lot.description),
-              styleSheet: MarkdownStyleSheet(
-                p: TextStyle(
-                  fontSize: 14.sp,
-                  height: 1.5,
-                  color: isDark ? Colors.white70 : Colors.black87,
-                ),
-                strong: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
+            if (widget.lot.description != null)
+              MarkdownBody(
+                data: getText(widget.lot.description),
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(
+                    fontSize: 14.sp,
+                    height: 1.5,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                  strong: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
               ),
-            ),
             SizedBox(height: 24.h),
 
             // Кнопка купить

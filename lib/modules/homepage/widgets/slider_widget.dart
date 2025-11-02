@@ -9,7 +9,7 @@ class BannerSlider extends StatelessWidget {
   final List<String> banners;
   final bool isDark;
   final int currentSlide;
-  final List<ArtistsEntity> bannerArtists; // артисты для баннеров
+  final List<ArtistEntity> bannerArtists; // артисты для баннеров
   final ValueChanged<int>? onPageChanged;
 
   const BannerSlider({

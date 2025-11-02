@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:quick_bid/core/enums/enums.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
-import 'package:quick_bid/modules/homepage/widgets/lot_card.dart';
-
+import 'package:quick_bid/core/enums/enums.dart';
+import 'package:quick_bid/modules/localized_text/localized_text.dart';
 
 class ArtistCard extends StatelessWidget {
-  final ArtistsEntity artist;
+  final ArtistEntity artist;
   final Lang currentLang; // текущий язык для отображения
 
-  const ArtistCard({super.key, required this.artist, required this.currentLang});
+  const ArtistCard({
+    super.key,
+    required this.artist,
+    required this.currentLang,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final lotCount = artist.lots.length;
-    final category = _getLangText(artist.category);
+
+    // Получаем текст на текущем языке
     final name = _getLangText(artist.name);
+    final category = _getLangText(artist.category.name);
 
     final textColor = isDark ? Colors.white : Colors.black87;
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[700];
@@ -107,16 +112,16 @@ class ArtistCard extends StatelessWidget {
     );
   }
 
-  // --- переписанный метод для Map<String, String> ---
-  String _getLangText(Map<String, String> langMap) {
+  // --- метод для получения текста на текущем языке ---
+  String _getLangText(LocalizedText text) {
     switch (currentLang) {
       case Lang.ky:
-        return langMap['ky'] ?? '';
+        return text.getByLang('ky');
       case Lang.ru:
-        return langMap['ru'] ?? '';
+        return text.getByLang('ru');
       case Lang.en:
       default:
-        return langMap['en'] ?? '';
+        return text.getByLang('en');
     }
   }
 }

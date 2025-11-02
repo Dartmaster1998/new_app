@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:quick_bid/core/base/app_state.dart';
 import 'package:quick_bid/core/enums/enums.dart';
+import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
 import 'package:quick_bid/modules/artists/cubit/artists_cubit.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
-import 'package:quick_bid/modules/homepage/widgets/actor_card.dart';
-import 'package:quick_bid/modules/homepage/widgets/lot_card.dart';
-import 'package:quick_bid/modules/homepage/widgets/choose_catalog.dart';
+import 'package:quick_bid/modules/artists/widgets/actor_card.dart';
+import 'package:quick_bid/modules/category/cubit/category_cubit.dart';
+import 'package:quick_bid/modules/category/domain/entity/category_entity.dart';
+import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
+import 'package:quick_bid/modules/lots/widgets/lot_card.dart';
 import 'package:quick_bid/modules/homepage/widgets/header_widget.dart';
-import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/modules/homepage/widgets/slider_widget.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:go_router/go_router.dart';
@@ -34,7 +37,6 @@ class _HomePageScreenState extends State<HomePageScreen> {
     "assets/images/slider4.jpeg",
   ];
 
-  // Здесь укажи, какой артист соответствует каждому слайду
   final Map<int, String> bannerArtistIds = {
     0: "artist1",
     1: "artist3",
@@ -46,6 +48,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
   void initState() {
     super.initState();
     context.read<ArtistsCubit>().fetchArtists();
+    context.read<CategoryCubit>().fetchCategories();
   }
 
   @override
@@ -68,20 +71,62 @@ class _HomePageScreenState extends State<HomePageScreen> {
               },
             ),
             const Divider(),
-            Padding(
-              padding: const EdgeInsets.only(left: 15),
-              child: ChooseCatalog(
-                activeIndex: _activeCatalogIndex,
-                onChanged: (index) {
-                  setState(() {
-                    _activeCatalogIndex = index;
-                  });
-                },
-              ),
+            // --- Вкладки категорий ---
+            BlocBuilder<CategoryCubit, AppState<List<CategoryEntity>>>(
+              builder: (context, state) {
+                if (state.status == StateStatus.loading) {
+                  return const LinearProgressIndicator();
+                } else if (state.status == StateStatus.error) {
+                  return Center(child: Text("Ошибка: ${state.error}", style: TextStyle(color: textColor)));
+                } else if (state.status == StateStatus.success && state.model != null) {
+                  final categories = state.model!;
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: 15.w),
+                    child: Row(
+                      children: List.generate(
+                        categories.length + 1, // +1 для "Все"
+                        (index) {
+                          final isActive = _activeCatalogIndex == index;
+                          final title = index == 0
+                              ? loc.all
+                              : categories[index - 1].name.getByLang(langCode);
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _activeCatalogIndex = index;
+                              });
+                            },
+                            child: Container(
+                              margin: EdgeInsets.only(right: 10.w),
+                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? (isDark ? Colors.orange : Colors.amber[700])
+                                    : (isDark ? Colors.grey[800] : Colors.grey[300]),
+                                borderRadius: BorderRadius.circular(20.r),
+                              ),
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  color: isActive ? Colors.white : textColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox();
+              },
             ),
             SizedBox(height: 20.h),
             Expanded(
-              child: BlocBuilder<ArtistsCubit, AppState<List<ArtistsEntity>>>(
+              child: BlocBuilder<CategoryCubit, AppState<List<CategoryEntity>>>(
                 builder: (context, state) {
                   if (state.status == StateStatus.loading) {
                     return const Center(child: CircularProgressIndicator());
@@ -94,119 +139,47 @@ class _HomePageScreenState extends State<HomePageScreen> {
                     );
                   } else if (state.status == StateStatus.success &&
                       state.model != null) {
-                    final artists = state.model!;
+                    final categories = state.model!;
 
-                    // --- Фильтрация по вкладкам ---
-                    List<ArtistsEntity> filteredArtists = [];
-                    List<MapEntry<ArtistsEntity, Lot>> filteredLots = [];
+                    // --- Фильтрация артистов и лотов по выбранной вкладке ---
+                    List<ArtistEntity> filteredArtists = [];
+                    List<MapEntry<ArtistEntity, LotEntity>> filteredLots = [];
 
-                    switch (_activeCatalogIndex) {
-                      case 0:
-                        filteredArtists = artists;
-                        filteredLots =
-                            artists
-                                .expand(
-                                  (artist) => artist.lots.map(
-                                    (lot) => MapEntry(artist, lot),
-                                  ),
-                                )
-                                .toList();
-                        break;
-                      case 1:
-                        filteredArtists =
-                            artists
-                                .where(
-                                  (a) =>
-                                      (a.category[langCode] ??
-                                              a.category['ru'] ??
-                                              '')
-                                          .toLowerCase() ==
-                                      "актер",
-                                )
-                                .toList();
-                        break;
-                      case 2:
-                        filteredArtists =
-                            artists
-                                .where(
-                                  (a) =>
-                                      (a.category[langCode] ??
-                                              a.category['ru'] ??
-                                              '')
-                                          .toLowerCase() ==
-                                      "певец",
-                                )
-                                .toList();
-                        break;
-                      case 3:
-                        filteredLots =
-                            artists
-                                .expand(
-                                  (artist) => artist.lots.map(
-                                    (lot) => MapEntry(artist, lot),
-                                  ),
-                                )
-                                .toList();
-                        break;
-                      case 4:
-                        filteredArtists =
-                            artists.where((a) {
-                              final category =
-                                  (a.category[langCode] ??
-                                          a.category['ru'] ??
-                                          '')
-                                      .toLowerCase();
-                              return category.isNotEmpty &&
-                                  category != "актер" &&
-                                  category != "певец";
-                            }).toList();
-                        break;
-                      default:
-                        filteredArtists = artists;
-                        break;
+                    if (_activeCatalogIndex == 0) {
+                      // Все артисты
+                      filteredArtists = categories.expand((c) => c.artists).toList();
+                    } else {
+                      // Выбранная категория
+                      final selectedCategory = categories[_activeCatalogIndex - 1];
+                      filteredArtists = selectedCategory.artists;
                     }
 
-                    // --- Фильтр поиска ---
-                    if (searchQuery.isNotEmpty) {
-                      filteredArtists =
-                          filteredArtists
-                              .where(
-                                (a) =>
-                                    (a.name[langCode] ?? a.name['ru'] ?? '')
-                                        .toLowerCase()
-                                        .contains(searchQuery) ||
-                                    a.lots.any(
-                                      (lot) => (lot.title[langCode] ??
-                                              lot.title['ru'] ??
-                                              '')
-                                          .toLowerCase()
-                                          .contains(searchQuery),
-                                    ),
-                              )
-                              .toList();
+                    // Все лоты от отфильтрованных артистов
+                    filteredLots = filteredArtists
+                        .expand((artist) => artist.lots.map((lot) => MapEntry(artist, lot)))
+                        .toList();
 
-                      filteredLots =
-                          filteredLots
-                              .where(
-                                (entry) => (entry.value.title[langCode] ??
-                                        entry.value.title['ru'] ??
-                                        '')
-                                    .toLowerCase()
-                                    .contains(searchQuery),
-                              )
-                              .toList();
+                    // --- Поиск ---
+                    if (searchQuery.isNotEmpty) {
+                      filteredArtists = filteredArtists
+                          .where((a) =>
+                              a.name.getByLang(langCode).toLowerCase().contains(searchQuery) ||
+                              a.lots.any((lot) =>
+                                  lot.name.getByLang(langCode).toLowerCase().contains(searchQuery)))
+                          .toList();
+
+                      filteredLots = filteredLots
+                          .where((entry) =>
+                              entry.value.name.getByLang(langCode).toLowerCase().contains(searchQuery))
+                          .toList();
                     }
 
                     // --- Баннер с кликабельными артистами ---
-                    List<ArtistsEntity> bannerArtists = [];
-
+                    List<ArtistEntity> bannerArtists = [];
                     for (int i = 0; i < banners.length; i++) {
                       final artistId = bannerArtistIds[i];
-                      final artist =
-                          artists.where((a) => a.id == artistId).toList();
-                      if (artist.isNotEmpty) {
-                        bannerArtists.add(artist.first);
-                      }
+                      final artistMatch = filteredArtists.where((a) => a.id == artistId);
+                      if (artistMatch.isNotEmpty) bannerArtists.add(artistMatch.first);
                     }
 
                     return SingleChildScrollView(
@@ -241,8 +214,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
                               activeIndex: _currentSlide,
                               count: banners.length,
                               effect: ExpandingDotsEffect(
-                                activeDotColor:
-                                    isDark ? Colors.white : Colors.black,
+                                activeDotColor: isDark ? Colors.white : Colors.black,
                                 dotColor: Colors.grey,
                                 dotHeight: 6.h,
                                 dotWidth: 6.w,
@@ -253,48 +225,36 @@ class _HomePageScreenState extends State<HomePageScreen> {
 
                           // --- Артисты ---
                           if (filteredArtists.isNotEmpty)
-                            Text(
-                              _activeCatalogIndex == 0
-                                  ? "⭐ ${loc.famous}"
-                                  : _activeCatalogIndex == 1
-                                  ? "⭐ ${loc.actors}"
-                                  : _activeCatalogIndex == 2
-                                  ? "🎵 ${loc.singers}"
-                                  : _activeCatalogIndex == 3
-                                  ? loc.lots
-                                  : loc.other,
-                              style: TextStyle(
-                                fontSize: 20.sp,
-                                fontWeight: FontWeight.w600,
-                                color: textColor,
-                              ),
-                            ),
-                          if (filteredArtists.isNotEmpty)
-                            SizedBox(height: 10.h),
-                          if (filteredArtists.isNotEmpty)
-                            SizedBox(
-                              height: 200.h,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: filteredArtists.length,
-                                separatorBuilder:
-                                    (_, __) => SizedBox(width: 12.w),
-                                itemBuilder: (context, index) {
-                                  final artist = filteredArtists[index];
-                                  return GestureDetector(
-                                    onTap: () {
-                                      context.push(
-                                        '/artist-detail',
-                                        extra: artist,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _activeCatalogIndex == 0 ? loc.famous : filteredArtists.first.category.name.getByLang(langCode),
+                                  style: TextStyle(
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                                SizedBox(height: 10.h),
+                                SizedBox(
+                                  height: 200.h,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: filteredArtists.length,
+                                    separatorBuilder: (_, __) => SizedBox(width: 12.w),
+                                    itemBuilder: (context, index) {
+                                      final artist = filteredArtists[index];
+                                      return ActorCard(
+                                        artist: artist,
+                                        photoHeight: 120,
                                       );
                                     },
-                                    child: ActorCard(artist: artist),
-                                  );
-                                },
-                              ),
+                                  ),
+                                ),
+                                SizedBox(height: 25.h),
+                              ],
                             ),
-                          if (filteredArtists.isNotEmpty)
-                            SizedBox(height: 25.h),
 
                           // --- Лоты ---
                           if (filteredLots.isNotEmpty)
@@ -315,33 +275,22 @@ class _HomePageScreenState extends State<HomePageScreen> {
                                   child: ListView.separated(
                                     scrollDirection: Axis.horizontal,
                                     itemCount: filteredLots.length,
-                                    separatorBuilder:
-                                        (_, __) => SizedBox(width: 12.w),
+                                    separatorBuilder: (_, __) => SizedBox(width: 12.w),
                                     itemBuilder: (context, index) {
                                       final artist = filteredLots[index].key;
                                       final lot = filteredLots[index].value;
-                                      return GestureDetector(
-                                        onTap: () {
-                                          context.push(
-                                            '/lot-detail',
-                                            extra: {
-                                              'artist': artist,
-                                              'lot': lot,
-                                            },
-                                          );
-                                        },
-                                        child: LotCard(
-                                          lot: lot,
-                                          artist: artist,
-                                          showBuyButton: false,
-                                        ),
+                                      return LotCard(
+                                        lot: lot,
+                                        artist: artist,
+                                        showBuyButton: false,
+                                        photoHeight: 120,
                                       );
                                     },
                                   ),
                                 ),
+                                SizedBox(height: 40.h),
                               ],
                             ),
-                          if (filteredLots.isNotEmpty) SizedBox(height: 40.h),
                         ],
                       ),
                     );
