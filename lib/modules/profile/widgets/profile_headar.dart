@@ -41,7 +41,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 height: 40.h,
                 decoration: BoxDecoration(
                   color: widget.isDark
-                      ? Colors.white.withOpacity(0.1)
+                      ? Colors.white.withValues(alpha: 0.1)
                       : const Color.fromARGB(255, 240, 241, 242),
                   borderRadius: BorderRadius.circular(8),
                 ),

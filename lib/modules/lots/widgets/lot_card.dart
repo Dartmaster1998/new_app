@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_bid/core/helper/image_url_helper.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 import 'package:quick_bid/modules/localized_text/localized_text.dart';
@@ -33,10 +34,13 @@ class LotCard extends StatelessWidget {
       if (text == null) return '';
       return text.getByLang(langCode);
     }
+    
+    // Для планшета используем увеличенные шрифты
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 768;
 
     return Container(
       width: 110.w,
-      height: photoHeight.h + 100.h,
       decoration: BoxDecoration(
         color: isDark ? Colors.black : Colors.white,
         borderRadius: BorderRadius.circular(10.r),
@@ -45,6 +49,7 @@ class LotCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Фото
@@ -52,34 +57,44 @@ class LotCard extends StatelessWidget {
             margin: EdgeInsets.all(6.w),
             width: double.infinity,
             height: photoHeight.h,
-            child: lot.photo.isNotEmpty
+            child: lot.photos.isNotEmpty
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(6.r),
                     child: Image.network(
-                      lot.photo[0],
+                      ImageUrlHelper.getFullImageUrl(lot.photos[0]),
                       fit: BoxFit.cover,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
+                        return Container(
+                          color: isDark ? Colors.grey[900] : Colors.grey[200],
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.amber[800],
+                            ),
                           ),
                         );
                       },
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.image, size: 40),
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: isDark ? Colors.grey[900] : Colors.grey[200],
+                          child: Center(
+                            child: const Icon(Icons.broken_image, size: 40),
+                          ),
+                        );
+                      },
                     ),
                   )
                 : const Icon(Icons.image, size: 40),
           ),
-
           // Название и цена
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -87,33 +102,33 @@ class LotCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14.sp,
+                    fontSize: isTablet ? 24.sp : 16.sp,
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
                 SizedBox(height: 2.h),
                 Text(
-                  getText(artist.name),
+                  "${loc?.owner ?? 'Owner'}: ${getText(artist.name)}",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+                  style: TextStyle(fontSize: isTablet ? 14.sp : 12.sp, color: Colors.grey),
                 ),
                 SizedBox(height: 2.h),
                 Text(
-                  "${lot.price ?? 0} ${loc?.som ?? ''}",
-                  style: TextStyle(fontSize: 12.sp, color: Colors.amber[800]),
+                  "${lot.price} ${loc?.som ?? ''}",
+                  style: TextStyle(fontSize: isTablet ? 14.sp : 12.sp, color: Colors.amber[800]),
                 ),
                 if (showBuyButton)
-                  SizedBox(
-                    width: double.infinity,
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 4.h),
+                  Padding(
+                    padding: EdgeInsets.only(top: 4.h),
+                    child: SizedBox(
+                      width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber[800],
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 4.h),
+                          padding: EdgeInsets.symmetric(vertical: 6.h),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(6.r),
                           ),
@@ -126,7 +141,7 @@ class LotCard extends StatelessWidget {
                         ),
                         child: Text(
                           loc?.buy ?? 'Buy',
-                          style: TextStyle(fontSize: 12.sp),
+                          style: TextStyle(fontSize: isTablet ? 14.sp : 11.sp),
                         ),
                       ),
                     ),

@@ -10,7 +10,7 @@ final Dio _dio;
   DioClient({required this.tokenStorage})
       : _dio = Dio(
           BaseOptions(
-            baseUrl: 'http://34.18.76.114',
+            baseUrl: 'https://auction-backend-mlzq.onrender.com/api/v1',
             responseType: ResponseType.json,
             sendTimeout: const Duration(seconds: 10000),
             receiveTimeout: const Duration(seconds: 10000),
@@ -114,7 +114,7 @@ class LoggerInterceptor extends Interceptor {
   final Dio _dio;
 
   LoggerInterceptor({required this.tokenStorage})
-      : _dio = Dio(BaseOptions(baseUrl: 'http://34.18.76.114'));
+      : _dio = Dio(BaseOptions(baseUrl: 'https://auction-backend-mlzq.onrender.com/api/v1'));
 
 @override
 void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {

@@ -49,7 +49,7 @@ class PayQrScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(24.r),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -76,12 +76,12 @@ class PayQrScreen extends StatelessWidget {
                   scale: 1.0,
                   child: QrImageView(
                     data:
-                        "lot:${Uri.encodeComponent(lot['title'] ?? '')}" // вместо id теперь title
+                        "lot:${Uri.encodeComponent(lot['title']?.toString() ?? '')}"
                         "|name:${Uri.encodeComponent(name)}"
                         "|phone:${Uri.encodeComponent(phone)}"
                         "|email:${Uri.encodeComponent(email)}"
-                        "|amount:${lot['startingPrice']}"
-                        "|recipient:${Uri.encodeComponent(artist['phone'] ?? '')}",
+                        "|amount:${lot['startingPrice']?.toString() ?? '0'}"
+                        "|recipient:${Uri.encodeComponent(artist['phone']?.toString() ?? artist['name']?.toString() ?? '')}",
                     version: QrVersions.auto,
                     size: 180.w,
                     backgroundColor: Colors.white,

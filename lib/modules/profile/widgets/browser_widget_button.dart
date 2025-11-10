@@ -18,14 +18,21 @@ class OpenBrowserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 768;
+
+    // 👇 Если планшет — ширина на весь экран, иначе фиксированная
+    final buttonWidth = isTablet ? 1.sw : 370.w;
+    final buttonHeight = isTablet ? 90.h : 70.h;
+
     return InkWell(
       onTap: () => _launchURL(context, url),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(10.r),
       child: Container(
-        width: 370.w,
-        height: 70.h,
+        width: buttonWidth,
+        height: buttonHeight,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(10.r),
           color: isDark ? Colors.black : Colors.white,
           border: Border.all(
             color: isDark ? Colors.white24 : Colors.black12,
@@ -39,9 +46,9 @@ class OpenBrowserTile extends StatelessWidget {
               height: 40.h,
               decoration: BoxDecoration(
                 color: isDark
-                    ? Colors.white.withOpacity(0.1)
+                    ? Colors.white.withValues(alpha: 0.1)
                     : const Color.fromARGB(255, 240, 241, 242),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
               ),
               child: Center(
                 child: Image.asset(
@@ -75,6 +82,7 @@ class OpenBrowserTile extends StatelessWidget {
   void _launchURL(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Неверная ссылка')),
       );
@@ -82,17 +90,19 @@ class OpenBrowserTile extends StatelessWidget {
     }
 
     try {
-      // Всегда открываем браузер
-      if (!await launchUrl(
+      final launched = await launchUrl(
         uri,
-        mode: LaunchMode.externalApplication, // открывает в Chrome/Safari
-      )) {
+        mode: LaunchMode.externalApplication,
+      );
+      if (!context.mounted) return;
+      if (!launched) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Не удалось открыть ссылку')),
         );
       }
     } catch (e) {
       debugPrint("Ошибка при открытии ссылки: $e");
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ошибка при открытии ссылки')),
       );

@@ -59,15 +59,6 @@ class _HeaderWidgetState extends State<HeaderWidget>
     final iconColor = isDark ? Colors.white : Colors.black;
     final textColor = isDark ? Colors.white : Colors.black;
 
-    // Локализация слова "Знаменитости"
-    final title =
-        {
-          'ru': 'Знаменитости',
-          'ky': 'Билгилүү адамдар',
-          'en': 'Famous people',
-        }[widget.langCode] ??
-        'Famous people';
-
     return Material(
       child: Container(
         width: double.infinity,
@@ -90,22 +81,6 @@ class _HeaderWidgetState extends State<HeaderWidget>
 
                 SizedBox(width: 10.w),
 
-                // 🔹 Название "Знаменитости"
-                Text(
-                  showSearchField
-                      ? {
-                            'ru': 'Знаменитости',
-                            'ky': 'Билгилүү адамдар',
-                            'en': 'Famous people',
-                          }[widget.langCode] ??
-                          'Famous people'
-                      : '',
-                  style: TextStyle(
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
 
                 const Spacer(),
 
@@ -129,7 +104,7 @@ class _HeaderWidgetState extends State<HeaderWidget>
                                     isDense: true,
                                     hintText: "Поиск...",
                                     hintStyle: TextStyle(
-                                      color: textColor.withOpacity(0.6),
+                                      color: textColor.withValues(alpha: 0.6),
                                     ),
                                     prefixIcon: Icon(
                                       Icons.search,

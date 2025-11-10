@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
-import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 import 'package:quick_bid/modules/lots/data/model/lot_model.dart';
 import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
 import 'package:quick_bid/modules/lots/domain/repository/lots_domain_repository.dart';
@@ -12,7 +9,7 @@ class LotRepositoryImpl implements LotDomainRepository {
 
   LotRepositoryImpl({
     required Dio dio,
-    String baseUrl = 'https://occasionalistic‑tora‑atheistically.ngrok‑free.dev/api/v1',
+    String baseUrl = "https://auction-backend-mlzq.onrender.com/api/v1",
   }) : _dio = dio, _baseUrl = baseUrl;
 
   @override
@@ -21,18 +18,26 @@ class LotRepositoryImpl implements LotDomainRepository {
       final response = await _dio.get('$_baseUrl/lots');
       if (response.statusCode == 200) {
         final data = response.data;
+        
+        List<dynamic> lotsJson = [];
         if (data is List) {
-          return data
-             .map((json) => LotModel.fromJson(json as Map<String, dynamic>))
-             .toList();
-        } else {
-          throw Exception('Unexpected data format: expected List');
+          lotsJson = data;
+        } else if (data is Map<String, dynamic>) {
+          if (data['data'] is List) {
+            lotsJson = data['data'] as List<dynamic>;
+          } else if (data['data'] != null) {
+            lotsJson = [data['data']];
+          }
         }
+
+        return lotsJson
+            .where((json) => json != null && json is Map<String, dynamic>)
+            .map((json) => LotModel.fromJson(json as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception('Error fetching lots: ${response.statusCode}');
       }
     } catch (e) {
-      // Можно логировать ошибку или конвертировать в свой тип.
       throw Exception('Repository getAllLots failed: $e');
     }
   }
@@ -41,9 +46,23 @@ class LotRepositoryImpl implements LotDomainRepository {
   Future<LotEntity> getLotById(String id) async {
     try {
       final response = await _dio.get('$_baseUrl/lots/$id');
-      if (response.statusCode == 200) {
-        final json = response.data as Map<String, dynamic>;
-        return LotModel.fromJson(json);
+      if (response.statusCode == 200 && response.data != null) {
+        Map<String, dynamic>? lotJson;
+        final data = response.data;
+        
+        if (data is Map<String, dynamic>) {
+          lotJson = data;
+        } else if (data is Map && data.containsKey('data')) {
+          final dataValue = data['data'];
+          if (dataValue is Map<String, dynamic>) {
+            lotJson = dataValue;
+          }
+        }
+
+        if (lotJson != null) {
+          return LotModel.fromJson(lotJson);
+        }
+        throw Exception('Lot data is null or invalid');
       } else {
         throw Exception('Error fetching lot by id: ${response.statusCode}');
       }
@@ -61,13 +80,22 @@ class LotRepositoryImpl implements LotDomainRepository {
       );
       if (response.statusCode == 200) {
         final data = response.data;
+        
+        List<dynamic> lotsJson = [];
         if (data is List) {
-          return data
-             .map((json) => LotModel.fromJson(json as Map<String, dynamic>))
-             .toList();
-        } else {
-          throw Exception('Unexpected data format for artist lots');
+          lotsJson = data;
+        } else if (data is Map<String, dynamic>) {
+          if (data['data'] is List) {
+            lotsJson = data['data'] as List<dynamic>;
+          } else if (data['data'] != null) {
+            lotsJson = [data['data']];
+          }
         }
+
+        return lotsJson
+            .where((json) => json != null && json is Map<String, dynamic>)
+            .map((json) => LotModel.fromJson(json as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception('Error fetching lots by artist: ${response.statusCode}');
       }

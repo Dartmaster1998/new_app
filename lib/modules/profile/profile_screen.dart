@@ -8,7 +8,6 @@ import 'package:quick_bid/modules/profile/widgets/profile_headar.dart';
 import 'package:quick_bid/modules/profile/widgets/profile_language_selector.dart';
 import 'package:quick_bid/modules/profile/widgets/public_offer.dart';
 import 'package:quick_bid/modules/profile/widgets/theme_switcher.dart';
-import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

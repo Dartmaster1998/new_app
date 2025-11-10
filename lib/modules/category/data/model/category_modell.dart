@@ -1,9 +1,8 @@
-
-
-import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
+import 'package:quick_bid/modules/artists/data/model/artists_model.dart';
 import 'package:quick_bid/modules/localized_text/localized_text.dart';
 
 import '../../domain/entity/category_entity.dart' show CategoryEntity;
+import '../../domain/entity/category_entity.dart';
 
 class CategoryModel extends CategoryEntity {
   const CategoryModel({
@@ -13,44 +12,30 @@ class CategoryModel extends CategoryEntity {
     required super.artists,
   });
 
-  /// Создание из JSON
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
     return CategoryModel(
-      id: json['id'],
-      name: LocalizedText.fromJson(json['name']),
-      lotIds: List<String>.from(json['lots'] ?? []),
+      id: json['id']?.toString() ?? '',
+      name: json['name'] != null && json['name'] is Map<String, dynamic>
+          ? LocalizedText.fromJson(json['name'] as Map<String, dynamic>)
+          : const LocalizedText(ky: '', ru: '', en: ''),
+      lotIds: (json['lots'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map((e) => e['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList(),
       artists: (json['artists'] as List<dynamic>? ?? [])
-          .map((artistJson) => ArtistEntity(
-                id: artistJson['id'],
-                name: LocalizedText.fromJson(artistJson['name']),
-                photo: artistJson['photo'],
-                lots: [], // лоты можно загрузить отдельно, если есть только ID
-                category: CategoryEntity(
-                  id: json['id'],
-                  name: LocalizedText.fromJson(json['name']),
-                  lotIds: List<String>.from(json['lots'] ?? []),
-                  artists: [],
-                ),
-                slug: artistJson['slug'] ?? '',
-              ))
+          .whereType<Map<String, dynamic>>()
+          .map((e) => ArtistsModel.fromJson(e))
           .toList(),
     );
   }
 
-  /// Преобразование в JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name.toJson(),
       'lots': lotIds,
-      'artists': artists
-          .map((artist) => {
-                'id': artist.id,
-                'name': artist.name.toJson(),
-                'photo': artist.photo,
-                'slug': artist.slug,
-              })
-          .toList(),
+      'artists': artists.map((e) => (e as ArtistsModel).toJson()).toList(),
     };
   }
 }

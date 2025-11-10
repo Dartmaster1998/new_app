@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
-import 'package:go_router/go_router.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
+import 'package:quick_bid/modules/category/data/model/category_modell.dart';
+import 'package:quick_bid/modules/category/domain/entity/category_entity.dart';
+import 'package:quick_bid/modules/localized_text/localized_text.dart';
 
 class ActorCard extends StatelessWidget {
   final ArtistEntity artist;
   final double photoHeight;
+  final List<CategoryEntity> categories; // передаем список категорий
 
   const ActorCard({
     super.key,
     required this.artist,
+    required this.categories,
     this.photoHeight = 120,
   });
 
@@ -28,7 +34,22 @@ class ActorCard extends StatelessWidget {
     final lotCount = artist.lots.length;
     final langCode = app.locale.languageCode;
     final name = artist.name.getByLang(langCode);
-    final category = artist.category.name.getByLang(langCode);
+
+    // --- Получаем категорию по categoryId ---
+    final category = categories.firstWhere(
+      (c) => c.id == artist.categoryId,
+      orElse: () => CategoryModel(
+        id: '',
+        name: const LocalizedText(ky: '', ru: '', en: ''),
+        lotIds: const [],
+        artists: const [],
+      ),
+    );
+    final categoryName = category.name.getByLang(langCode);
+
+    // Для планшета используем увеличенные шрифты
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 768;
 
     return GestureDetector(
       onTap: () => context.push('/artist-detail', extra: artist),
@@ -49,7 +70,6 @@ class ActorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Фото артиста с индикатором загрузки
             Container(
               margin: EdgeInsets.all(6.w),
               width: double.infinity,
@@ -61,7 +81,7 @@ class ActorCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8.r),
                 child: Image.network(
-                  artist.photo,
+                  "https://auction-backend-mlzq.onrender.com${artist.photo}",
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
@@ -89,7 +109,7 @@ class ActorCard extends StatelessWidget {
                     child: Text(
                       name,
                       style: TextStyle(
-                        fontSize: 14.sp,
+                        fontSize: isTablet ? 18.sp : 14.sp,
                         fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
@@ -100,8 +120,11 @@ class ActorCard extends StatelessWidget {
                   SizedBox(
                     height: 16.h,
                     child: Text(
-                      category.isEmpty ? "—" : category,
-                      style: TextStyle(fontSize: 12.sp, color: subTextColor),
+                      categoryName.isEmpty ? "—" : categoryName,
+                      style: TextStyle(
+                        fontSize: isTablet ? 16.sp : 12.sp,
+                        color: subTextColor,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -109,8 +132,11 @@ class ActorCard extends StatelessWidget {
                   SizedBox(
                     height: 16.h,
                     child: Text(
-                      "$lotCount ${loc!.acitvlots ?? ""}.",
-                      style: TextStyle(fontSize: 12.sp, color: lotTextColor),
+                      "$lotCount ${loc?.acitvlots ?? ""}.",
+                      style: TextStyle(
+                        fontSize: isTablet ? 16.sp : 12.sp,
+                        color: lotTextColor,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

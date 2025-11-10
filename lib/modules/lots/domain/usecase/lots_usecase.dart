@@ -1,4 +1,3 @@
-import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
 import 'package:quick_bid/modules/lots/domain/repository/lots_domain_repository.dart';
 

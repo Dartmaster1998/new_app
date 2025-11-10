@@ -33,6 +33,8 @@ class ToggleButton extends StatelessWidget {
         ),
         child: Text(
           text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: isActive
               ? Texstylehelper.small14white500
               :Texstylehelper.small14blackw500,

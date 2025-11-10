@@ -20,11 +20,16 @@ class ProfileButtonWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 768;
+    final buttonWidth = isTablet ? 500.w : 370.w;
+    final buttonHeight = isTablet ? 90.h : 70.h;
+    
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: 370.w,
-        height: 70.h,
+        width: buttonWidth,
+        height: buttonHeight,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: isDark ? Colors.black : Colors.white,
@@ -39,7 +44,7 @@ class ProfileButtonWidget extends StatelessWidget {
                 height: 40.h,
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.white.withOpacity(0.1)
+                      ? Colors.white.withValues(alpha: 0.1)
                       : const Color.fromARGB(255, 240, 241, 242),
                   borderRadius: BorderRadius.circular(8),
                 ),

@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:quick_bid/core/base/app_state.dart';
-import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
 import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
 import 'package:quick_bid/modules/lots/domain/usecase/lots_usecase.dart';
 

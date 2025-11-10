@@ -13,6 +13,18 @@ import 'package:quick_bid/modules/category/data/repository/catetogry_impl.dart';
 import 'package:quick_bid/modules/category/domain/repository/category_domain_repository.dart';
 import 'package:quick_bid/modules/category/domain/usecase/category_usecase.dart';
 
+// --- Lots ---
+import 'package:quick_bid/modules/lots/cubit/lot_cubit.dart';
+import 'package:quick_bid/modules/lots/data/repository/repository_impl.dart';
+import 'package:quick_bid/modules/lots/domain/repository/lots_domain_repository.dart';
+import 'package:quick_bid/modules/lots/domain/usecase/lots_usecase.dart';
+
+// --- Sliders ---
+import 'package:quick_bid/modules/sliders/cubit/sliders_cubit.dart';
+import 'package:quick_bid/modules/sliders/data/repository/slider_repository_impl.dart';
+import 'package:quick_bid/modules/sliders/domain/repository/slider_domain_repository.dart';
+import 'package:quick_bid/modules/sliders/domain/usecase/get_sliders_usecase.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -24,6 +36,10 @@ Future<void> init() async {
       () => ArtistsRepositoryImpl(dio: sl()));
   sl.registerLazySingleton<CategoryDomainRepository>(
       () => CategoryRepositoryImpl(dio: sl()));
+  sl.registerLazySingleton<LotDomainRepository>(
+      () => LotRepositoryImpl(dio: sl()));
+  sl.registerLazySingleton<SliderDomainRepository>(
+      () => SliderRepositoryImpl(dio: sl()));
 
   // --- Artists UseCases ---
   sl.registerLazySingleton<GetArtistsUseCase>(() => GetArtistsUseCase(sl()));
@@ -41,6 +57,15 @@ Future<void> init() async {
   sl.registerLazySingleton<GetArtistIdsByCategoryUseCase>(
       () => GetArtistIdsByCategoryUseCase(sl()));
 
+  // --- Lots UseCases ---
+  sl.registerLazySingleton<GetLotsUseCase>(() => GetLotsUseCase(sl()));
+  sl.registerLazySingleton<GetLotByIdUseCase>(() => GetLotByIdUseCase(sl()));
+  sl.registerLazySingleton<GetLotsByArtistUseCase>(
+      () => GetLotsByArtistUseCase(sl()));
+
+  // --- Sliders UseCases ---
+  sl.registerLazySingleton<GetSlidersUseCase>(() => GetSlidersUseCase(sl()));
+
   // --- Cubits ---
   sl.registerFactory<ArtistsCubit>(
     () => ArtistsCubit(
@@ -55,8 +80,20 @@ Future<void> init() async {
     () => CategoryCubit(
       getCategoriesUseCase: sl(),
       getCategoryByIdUseCase: sl(),
-      getLotsByCategoryUseCase: sl(),
-      getArtistIdsByCategoryUseCase: sl(),
+    ),
+  );
+
+  sl.registerFactory<LotsCubit>(
+    () => LotsCubit(
+      getLotsUseCase: sl(),
+      getLotByIdUseCase: sl(),
+      getLotsByArtistUseCase: sl(),
+    ),
+  );
+
+  sl.registerFactory<SlidersCubit>(
+    () => SlidersCubit(
+      getSlidersUseCase: sl(),
     ),
   );
 }

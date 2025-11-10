@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
-import 'package:quick_bid/core/base/app_state.dart';
-import 'package:quick_bid/core/enums/enums.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/modules/artists/cubit/artists_cubit.dart';
-import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
-import 'package:quick_bid/modules/artists/widgets/actor_card.dart';
+import 'package:quick_bid/modules/category/cubit/category_cubit.dart';
+import 'package:quick_bid/modules/category/domain/entity/category_entity.dart';
 import 'package:quick_bid/modules/homepage/widgets/toggle_button.dart';
-import 'package:quick_bid/l10n/app_localizations.dart';
 
+import 'presentation/widgets/stars_category_filter.dart';
+import 'presentation/widgets/stars_grid.dart';
 class StarsScreen extends StatefulWidget {
   const StarsScreen({super.key});
 
@@ -37,8 +36,12 @@ class _StarsScreenState extends State<StarsScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    // Загружаем артистов при инициализации
-    context.read<ArtistsCubit>().fetchArtists();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ArtistsCubit>().fetchArtists();
+        context.read<CategoryCubit>().fetchCategories(); // загружаем категории
+      }
+    });
   }
 
   @override
@@ -65,6 +68,9 @@ class _StarsScreenState extends State<StarsScreen>
     final appProvider = context.watch<AppProvider>();
     final langCode = appProvider.locale.languageCode;
     final isDark = appProvider.themeMode == ThemeMode.dark;
+    final categoryState = context.watch<CategoryCubit>().state;
+    final artistsState = context.watch<ArtistsCubit>().state;
+    final categories = categoryState.model ?? const <CategoryEntity>[];
 
     final titleText = {
       'ru': 'Знаменитости',
@@ -78,11 +84,17 @@ class _StarsScreenState extends State<StarsScreen>
       'en': 'Search artist...',
     }[langCode] ?? 'Search artist...';
 
+    final allLabel = {
+      'ru': 'Все',
+      'ky': 'Баары',
+      'en': 'All',
+    }[langCode] ?? 'All';
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// 🔹 Заголовок + логотип + кнопка поиска
+          // 🔹 Заголовок + кнопка поиска
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
             child: Row(
@@ -93,8 +105,7 @@ class _StarsScreenState extends State<StarsScreen>
                   height: 50.h,
                   fit: BoxFit.contain,
                   color: isDark ? Colors.white : null,
-                  colorBlendMode:
-                      isDark ? BlendMode.modulate : BlendMode.dst,
+                  colorBlendMode: isDark ? BlendMode.modulate : BlendMode.dst,
                 ),
                 SizedBox(width: 8.w),
                 Expanded(
@@ -109,9 +120,7 @@ class _StarsScreenState extends State<StarsScreen>
                 ),
                 IconButton(
                   icon: Icon(
-                    _animationController.isDismissed
-                        ? Icons.search
-                        : Icons.close,
+                    _animationController.isDismissed ? Icons.search : Icons.close,
                     size: 26,
                     color: isDark ? Colors.white : Colors.black,
                   ),
@@ -121,7 +130,7 @@ class _StarsScreenState extends State<StarsScreen>
             ),
           ),
 
-          /// 🔹 Анимированное поле поиска
+          // 🔹 Анимированное поле поиска
           SizeTransition(
             sizeFactor: _widthAnimation,
             axisAlignment: -1.0,
@@ -148,112 +157,37 @@ class _StarsScreenState extends State<StarsScreen>
           ),
           SizedBox(height: 10.h),
 
-          /// 🔹 Фильтр категорий с вкладкой "Все"
-          BlocBuilder<ArtistsCubit, AppState<List<ArtistEntity>>>(
-            builder: (context, state) {
-              if (state.status != StateStatus.success || state.model == null) {
-                return const SizedBox.shrink();
-              }
-
-              final artists = state.model!;
-              final categories = <String>{};
-
-              for (var a in artists) {
-                final cat = a.category.name.getByLang(langCode);
-                if (cat.isNotEmpty) categories.add(cat);
-              }
-
-              final allCategories = ['Все', ...categories];
-
-              return SizedBox(
-                height: 40.h,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.symmetric(horizontal: 12.w),
-                  separatorBuilder: (_, __) => SizedBox(width: 8.w),
-                  itemCount: allCategories.length,
-                  itemBuilder: (context, index) {
-                    final cat = allCategories[index];
-                    final isActive = cat == selectedCategory ||
-                        (selectedCategory == null && cat == 'Все');
-
-                    return ToggleButton(
-                      text: cat,
-                      width: 110.w,
-                      height: 36.h,
-                      isActive: isActive,
-                      onTap: () {
-                        setState(() {
-                          selectedCategory = cat == 'Все' ? null : cat;
-                        });
-                      },
-                    );
-                  },
-                ),
-              );
+          // 🔹 Фильтр категорий
+          StarsCategoryFilter(
+            state: categoryState,
+            categories: categories,
+            langCode: langCode,
+            allLabel: allLabel,
+            selectedCategory: selectedCategory,
+            onCategoryChanged: (value) {
+              setState(() => selectedCategory = value);
             },
+            chipBuilder: (label, isActive, onTap) => ToggleButton(
+              text: label,
+              width: 110.w,
+              height: 36.h,
+              isActive: isActive,
+              onTap: onTap,
+            ),
           ),
           SizedBox(height: 10.h),
 
-          /// 🔹 Сетка артистов
+          // 🔹 Сетка артистов
           Expanded(
-            child: BlocBuilder<ArtistsCubit, AppState<List<ArtistEntity>>>(
-              builder: (context, state) {
-                if (state.status == StateStatus.loading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (state.status == StateStatus.error) {
-                  return Center(
-                      child: Text(
-                    "Ошибка: ${state.error}",
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                  ));
-                }
-
-                if (state.status == StateStatus.success &&
-                    state.model != null &&
-                    state.model!.isNotEmpty) {
-                  final allArtists = state.model!;
-
-                  // 🔍 Фильтрация по категории и поиску
-                  final filteredArtists = allArtists.where((artist) {
-                    final categoryMatch = selectedCategory == null
-                        ? true
-                        : artist.category.name.getByLang(langCode) ==
-                            selectedCategory;
-
-                    final name = artist.name.getByLang(langCode).toLowerCase();
-                    final searchMatch = name.contains(searchQuery);
-
-                    return categoryMatch && searchMatch;
-                  }).toList();
-
-                  if (filteredArtists.isEmpty) {
-                    return const Center(child: Text("Артисты не найдены"));
-                  }
-
-                  return GridView.builder(
-                    padding: EdgeInsets.all(12.w),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12.h,
-                      crossAxisSpacing: 12.w,
-                      childAspectRatio: 0.7,
-                    ),
-                    itemCount: filteredArtists.length,
-                    itemBuilder: (context, index) {
-                      final artist = filteredArtists[index];
-                      return ActorCard(
-                        photoHeight: 180,
-                        artist: artist,
-                      );
-                    },
-                  );
-                }
-
-                return const Center(child: Text("Артисты отсутствуют"));
-              },
+            child: StarsGrid(
+              state: artistsState,
+              categories: categories,
+              langCode: langCode,
+              selectedCategory: selectedCategory,
+              searchQuery: searchQuery,
+              isDark: isDark,
+              screenWidth: MediaQuery.of(context).size.width,
+              onRetry: () => context.read<ArtistsCubit>().fetchArtists(),
             ),
           ),
         ],

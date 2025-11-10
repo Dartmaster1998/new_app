@@ -1,5 +1,3 @@
-
-import 'package:equatable/equatable.dart';
 import 'package:equatable/equatable.dart';
 
 /// Мультиязычный текст

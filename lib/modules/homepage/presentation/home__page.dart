@@ -2,21 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
-import 'package:quick_bid/core/base/app_state.dart';
-import 'package:quick_bid/core/enums/enums.dart';
 import 'package:quick_bid/core/theme/app_provider.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
 import 'package:quick_bid/modules/artists/cubit/artists_cubit.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
-import 'package:quick_bid/modules/artists/widgets/actor_card.dart';
 import 'package:quick_bid/modules/category/cubit/category_cubit.dart';
 import 'package:quick_bid/modules/category/domain/entity/category_entity.dart';
 import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
-import 'package:quick_bid/modules/lots/widgets/lot_card.dart';
+import 'package:quick_bid/modules/sliders/cubit/sliders_cubit.dart';
+import 'package:quick_bid/modules/sliders/domain/entity/slider_entity.dart';
 import 'package:quick_bid/modules/homepage/widgets/header_widget.dart';
-import 'package:quick_bid/modules/homepage/widgets/slider_widget.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'widgets/category_filter.dart';
+import 'widgets/home_content.dart';
+import 'widgets/home_slider_section.dart';
 
 class HomePageScreen extends StatefulWidget {
   const HomePageScreen({super.key});
@@ -30,25 +31,104 @@ class _HomePageScreenState extends State<HomePageScreen> {
   int _activeCatalogIndex = 0;
   String searchQuery = "";
 
-  final List<String> banners = [
-    "assets/images/slider1.jpeg",
-    "assets/images/slider2.jpeg",
-    "assets/images/slider3.jpeg",
-    "assets/images/slider4.jpeg",
-  ];
+  Future<void> _handleSliderTap(
+    SliderEntity slider,
+    List<ArtistEntity> allArtists,
+  ) async {
+    final rawLink = slider.link.trim();
+    if (rawLink.isEmpty) return;
 
-  final Map<int, String> bannerArtistIds = {
-    0: "artist1",
-    1: "artist3",
-    2: "artist5",
-    3: "artist7",
-  };
+    final linkLower = rawLink.toLowerCase();
+
+    final lotMatch = RegExp(r'artist(\w+)_lot(\w+)').firstMatch(linkLower);
+    if (lotMatch != null) {
+      final artistId = 'artist${lotMatch.group(1)}';
+      final lotId = 'artist${lotMatch.group(1)}_lot${lotMatch.group(2)}';
+
+      LotEntity? targetLot;
+      ArtistEntity? targetArtist;
+
+      for (final artist in allArtists) {
+        if (artist.id == artistId) {
+          targetArtist = artist;
+          if (artist.lots.isNotEmpty) {
+            targetLot = artist.lots.firstWhere(
+              (lot) => lot.id == lotId,
+              orElse: () => artist.lots.first,
+            );
+          }
+          break;
+        }
+      }
+
+      if (targetLot != null && targetArtist != null) {
+        if (!mounted) return;
+        context.push(
+          '/lot-detail',
+          extra: {'lot': targetLot, 'artist': targetArtist},
+        );
+        return;
+      }
+    }
+
+    final artistMatch = RegExp(r'^artist(\w+)$').firstMatch(linkLower);
+    if (artistMatch != null) {
+      final artistId = 'artist${artistMatch.group(1)}';
+      ArtistEntity? targetArtist;
+
+      try {
+        targetArtist = allArtists.firstWhere((artist) => artist.id == artistId);
+      } catch (_) {}
+
+      if (targetArtist != null) {
+        if (!mounted) return;
+        context.push('/artist-detail', extra: targetArtist);
+        return;
+      }
+    }
+
+    final uri = Uri.tryParse(rawLink);
+    if (uri != null) {
+      try {
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched) {
+          throw Exception('launchUrl returned false');
+        }
+        return;
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Не удалось открыть ссылку',
+          style: TextStyle(color: isDarkMode(context) ? Colors.white : Colors.black),
+        ),
+        backgroundColor: isDarkMode(context) ? Colors.black87 : Colors.white,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  bool isDarkMode(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark;
+  }
 
   @override
   void initState() {
     super.initState();
-    context.read<ArtistsCubit>().fetchArtists();
-    context.read<CategoryCubit>().fetchCategories();
+    // Загружаем данные после полной инициализации виджета
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ArtistsCubit>().fetchArtists();
+        context.read<CategoryCubit>().fetchCategories();
+        context.read<SlidersCubit>().fetchSliders();
+      }
+    });
   }
 
   @override
@@ -56,8 +136,18 @@ class _HomePageScreenState extends State<HomePageScreen> {
     final loc = AppLocalizations.of(context)!;
     final app = context.watch<AppProvider>();
     final langCode = app.locale.languageCode;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 768;
+    final isTabletMini = screenWidth >= 600;
+
+    final categoryState = context.watch<CategoryCubit>().state;
+    final artistsState = context.watch<ArtistsCubit>().state;
+    final slidersState = context.watch<SlidersCubit>().state;
+
+    final categories = categoryState.model ?? const <CategoryEntity>[];
+    final allArtists = artistsState.model ?? const <ArtistEntity>[];
 
     return SafeArea(
       child: Scaffold(
@@ -69,234 +159,60 @@ class _HomePageScreenState extends State<HomePageScreen> {
                   searchQuery = value.toLowerCase();
                 });
               },
+              langCode: langCode,
             ),
             const Divider(),
-            // --- Вкладки категорий ---
-            BlocBuilder<CategoryCubit, AppState<List<CategoryEntity>>>(
-              builder: (context, state) {
-                if (state.status == StateStatus.loading) {
-                  return const LinearProgressIndicator();
-                } else if (state.status == StateStatus.error) {
-                  return Center(child: Text("Ошибка: ${state.error}", style: TextStyle(color: textColor)));
-                } else if (state.status == StateStatus.success && state.model != null) {
-                  final categories = state.model!;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(horizontal: 15.w),
-                    child: Row(
-                      children: List.generate(
-                        categories.length + 1, // +1 для "Все"
-                        (index) {
-                          final isActive = _activeCatalogIndex == index;
-                          final title = index == 0
-                              ? loc.all
-                              : categories[index - 1].name.getByLang(langCode);
-                          return GestureDetector(
-                            onTap: () {
+            CategoryFilter(
+              state: categoryState,
+              categories: categories,
+              langCode: langCode,
+              loc: loc,
+              activeIndex: _activeCatalogIndex,
+              onCategorySelected: (index) {
                               setState(() {
                                 _activeCatalogIndex = index;
                               });
-                            },
-                            child: Container(
-                              margin: EdgeInsets.only(right: 10.w),
-                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? (isDark ? Colors.orange : Colors.amber[700])
-                                    : (isDark ? Colors.grey[800] : Colors.grey[300]),
-                                borderRadius: BorderRadius.circular(20.r),
-                              ),
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  color: isActive ? Colors.white : textColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox();
               },
             ),
             SizedBox(height: 20.h),
+            HomeSliderSection(
+              state: slidersState,
+                                    isDark: isDark,
+                                    currentSlide: _currentSlide,
+                                    onPageChanged: (index) {
+                                      setState(() {
+                                        _currentSlide = index;
+                                      });
+                                    },
+              onTap: (index) async {
+                final sliders = slidersState.model;
+                if (sliders != null &&
+                    index >= 0 &&
+                    index < sliders.length) {
+                  await _handleSliderTap(sliders[index], allArtists);
+                }
+              },
+            ),
             Expanded(
-              child: BlocBuilder<CategoryCubit, AppState<List<CategoryEntity>>>(
-                builder: (context, state) {
-                  if (state.status == StateStatus.loading) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (state.status == StateStatus.error) {
-                    return Center(
-                      child: Text(
-                        "Ошибка: ${state.error}",
-                        style: TextStyle(color: textColor),
-                      ),
-                    );
-                  } else if (state.status == StateStatus.success &&
-                      state.model != null) {
-                    final categories = state.model!;
-
-                    // --- Фильтрация артистов и лотов по выбранной вкладке ---
-                    List<ArtistEntity> filteredArtists = [];
-                    List<MapEntry<ArtistEntity, LotEntity>> filteredLots = [];
-
-                    if (_activeCatalogIndex == 0) {
-                      // Все артисты
-                      filteredArtists = categories.expand((c) => c.artists).toList();
-                    } else {
-                      // Выбранная категория
-                      final selectedCategory = categories[_activeCatalogIndex - 1];
-                      filteredArtists = selectedCategory.artists;
-                    }
-
-                    // Все лоты от отфильтрованных артистов
-                    filteredLots = filteredArtists
-                        .expand((artist) => artist.lots.map((lot) => MapEntry(artist, lot)))
-                        .toList();
-
-                    // --- Поиск ---
-                    if (searchQuery.isNotEmpty) {
-                      filteredArtists = filteredArtists
-                          .where((a) =>
-                              a.name.getByLang(langCode).toLowerCase().contains(searchQuery) ||
-                              a.lots.any((lot) =>
-                                  lot.name.getByLang(langCode).toLowerCase().contains(searchQuery)))
-                          .toList();
-
-                      filteredLots = filteredLots
-                          .where((entry) =>
-                              entry.value.name.getByLang(langCode).toLowerCase().contains(searchQuery))
-                          .toList();
-                    }
-
-                    // --- Баннер с кликабельными артистами ---
-                    List<ArtistEntity> bannerArtists = [];
-                    for (int i = 0; i < banners.length; i++) {
-                      final artistId = bannerArtistIds[i];
-                      final artistMatch = filteredArtists.where((a) => a.id == artistId);
-                      if (artistMatch.isNotEmpty) bannerArtists.add(artistMatch.first);
-                    }
-
-                    return SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(horizontal: 15.w),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              if (_currentSlide < bannerArtists.length) {
-                                context.push(
-                                  '/artist-detail',
-                                  extra: bannerArtists[_currentSlide],
-                                );
-                              }
-                            },
-                            child: BannerSlider(
-                              banners: banners,
-                              isDark: isDark,
-                              currentSlide: _currentSlide,
-                              bannerArtists: bannerArtists,
-                              onPageChanged: (index) {
-                                setState(() {
-                                  _currentSlide = index;
-                                });
-                              },
-                            ),
-                          ),
-                          SizedBox(height: 8.h),
-                          Center(
-                            child: AnimatedSmoothIndicator(
-                              activeIndex: _currentSlide,
-                              count: banners.length,
-                              effect: ExpandingDotsEffect(
-                                activeDotColor: isDark ? Colors.white : Colors.black,
-                                dotColor: Colors.grey,
-                                dotHeight: 6.h,
-                                dotWidth: 6.w,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 25.h),
-
-                          // --- Артисты ---
-                          if (filteredArtists.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _activeCatalogIndex == 0 ? loc.famous : filteredArtists.first.category.name.getByLang(langCode),
-                                  style: TextStyle(
-                                    fontSize: 20.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: textColor,
-                                  ),
-                                ),
-                                SizedBox(height: 10.h),
-                                SizedBox(
-                                  height: 200.h,
-                                  child: ListView.separated(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: filteredArtists.length,
-                                    separatorBuilder: (_, __) => SizedBox(width: 12.w),
-                                    itemBuilder: (context, index) {
-                                      final artist = filteredArtists[index];
-                                      return ActorCard(
-                                        artist: artist,
-                                        photoHeight: 120,
-                                      );
-                                    },
-                                  ),
-                                ),
-                                SizedBox(height: 25.h),
-                              ],
-                            ),
-
-                          // --- Лоты ---
-                          if (filteredLots.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  loc.lots,
-                                  style: TextStyle(
-                                    fontSize: 20.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: textColor,
-                                  ),
-                                ),
-                                SizedBox(height: 10.h),
-                                SizedBox(
-                                  height: 200.h,
-                                  child: ListView.separated(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: filteredLots.length,
-                                    separatorBuilder: (_, __) => SizedBox(width: 12.w),
-                                    itemBuilder: (context, index) {
-                                      final artist = filteredLots[index].key;
-                                      final lot = filteredLots[index].value;
-                                      return LotCard(
-                                        lot: lot,
-                                        artist: artist,
-                                        showBuyButton: false,
-                                        photoHeight: 120,
-                                      );
-                                    },
-                                  ),
-                                ),
-                                SizedBox(height: 40.h),
-                              ],
-                            ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return const SizedBox();
+              child: HomeContent(
+                categoryState: categoryState,
+                artistsState: artistsState,
+                categories: categories,
+                allArtists: allArtists,
+                activeIndex: _activeCatalogIndex,
+                searchQuery: searchQuery,
+                langCode: langCode,
+                isTablet: isTablet,
+                isTabletMini: isTabletMini,
+                loc: loc,
+                onLotTap: (lot, artist) {
+                                              context.push(
+                                                '/lot-detail',
+                                                extra: {
+                                                  'lot': lot,
+                                                  'artist': artist,
+                    },
+                  );
                 },
               ),
             ),
@@ -305,4 +221,5 @@ class _HomePageScreenState extends State<HomePageScreen> {
       ),
     );
   }
+
 }

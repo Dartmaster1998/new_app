@@ -1,29 +1,59 @@
+import 'package:quick_bid/modules/artists/data/model/artists_model.dart';
+import 'package:quick_bid/modules/category/data/model/category_modell.dart';
 import 'package:quick_bid/modules/localized_text/localized_text.dart';
 import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
 
-/// Модель лота (для работы с API)
+
 class LotModel extends LotEntity {
   const LotModel({
     required super.id,
     required super.artistId,
     required super.name,
-    required super.description, // теперь обязательно
+    super.description,
     required super.price,
-    required super.photo,
+    required super.photos,
+    required super.artist,
+    required super.categories,
+    required super.createdAt,
+    required super.updatedAt,
   });
 
   /// Создание из JSON
   factory LotModel.fromJson(Map<String, dynamic> json) {
     return LotModel(
-      id: json['id'] as String,
-      artistId: json['artist_id'] as String,
-      name: LocalizedText.fromJson(json['name'] as Map<String, dynamic>),
-      // description теперь обязательный, используем пустой текст, если его нет
-      description: json['description'] != null
-          ? LocalizedText.fromJson(json['description'] as Map<String, dynamic>)
+      id: json['id']?.toString() ?? '',
+      artistId: json['artistId']?.toString() ?? '',
+      name: json['name'] != null && json['name'] is Map<String, dynamic>
+          ? LocalizedText.fromJson(json['name'] as Map<String, dynamic>)
           : const LocalizedText(ky: '', ru: '', en: ''),
-      price: (json['price'] as num).toDouble(),
-      photo: List<String>.from(json['photo'] ?? []),
+      description: json['description'] != null && json['description'] is Map<String, dynamic>
+          ? LocalizedText.fromJson(json['description'] as Map<String, dynamic>)
+          : null,
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      photos: (json['photos'] as List<dynamic>? ?? [])
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList(),
+      artist: json['artist'] != null
+          ? ArtistsModel.fromJson(json['artist'] as Map<String, dynamic>)
+          : ArtistsModel(
+           lots: [], 
+              id: '',
+              name: const LocalizedText(ky: '', ru: '', en: ''),
+              photo: '',
+              slug: '',
+              description: const LocalizedText(ky: '', ru: '', en: ''),
+              categoryId: '',
+            ),
+      categories: (json['categories'] as List<dynamic>? ?? [])
+          .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : DateTime.now(),
     );
   }
 
@@ -31,11 +61,15 @@ class LotModel extends LotEntity {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'artist_id': artistId,
+      'artistId': artistId,
       'name': name.toJson(),
-      'description': description.toJson(),
+      if (description != null) 'description': description!.toJson(),
       'price': price,
-      'photo': photo,
+      'photos': photos,
+      'artist': (artist as ArtistsModel).toJson(),
+      'categories': categories.map((e) => (e as CategoryModel).toJson()).toList(),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 }

@@ -1,7 +1,3 @@
-
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:quick_bid/core/base/app_state.dart';
-import 'package:quick_bid/modules/artists/domain/usecase/get_artists_usecase.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:quick_bid/core/base/app_state.dart';
 import 'package:quick_bid/modules/artists/domain/entity/artists_entity.dart';
@@ -58,7 +54,7 @@ class ArtistsCubit extends Cubit<AppState<List<ArtistEntity>>> {
   Future<void> fetchCategories() async {
     emit(AppState.loading());
     try {
-      final categories = await getCategoriesUseCase();
+      await getCategoriesUseCase();
       // Для категорий можно сделать отдельный Cubit
     } catch (e) {
       emit(AppState.error(error: e.toString()));

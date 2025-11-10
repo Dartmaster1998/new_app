@@ -7,6 +7,8 @@ import 'package:quick_bid/modules/lots/presentation/lot_detail_screen.dart';
 import 'package:quick_bid/modules/payment/payment_screen.dart';
 import 'package:quick_bid/modules/profile/widgets/public_offer.dart';
 import 'package:quick_bid/modules/splash_screen/splash_screen.dart';
+import 'package:quick_bid/modules/lots/domain/entity/lots_entity.dart';
+import 'package:quick_bid/modules/localized_text/localized_text.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
@@ -22,54 +24,88 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/artist-detail',
       builder: (context, state) {
-        final artist = state.extra as ArtistEntity;
+        final artist = state.extra as ArtistEntity?;
+        if (artist == null) {
+          return const Scaffold(
+            body: Center(child: Text('Ошибка: артист не найден')),
+          );
+        }
         return ArtistDetailScreen(artist: artist);
       },
     ),
     GoRoute(
       path: '/lot-detail',
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>;
+        final extra = state.extra;
+        if (extra is! Map<String, dynamic>) {
+          return const Scaffold(
+            body: Center(child: Text('Ошибка: данные лота не переданы')),
+          );
+        }
+
         final lot = extra['lot'];
-        final artist = extra['artist'];
+        if (lot is! LotEntity) {
+          return const Scaffold(
+            body: Center(child: Text('Ошибка: лот не найден')),
+          );
+        }
+
+        ArtistEntity artist;
+        if (extra['artist'] is ArtistEntity) {
+          artist = extra['artist'] as ArtistEntity;
+        } else {
+          // Создаем временного артиста, если не передан
+          artist = ArtistEntity(
+            id: lot.artistId,
+            name: const LocalizedText(
+              ky: 'Неизвестно',
+              ru: 'Неизвестно',
+              en: 'Unknown',
+            ),
+            photo: '',
+            lots: [],
+            categoryId: '',
+            slug: '',
+            description: const LocalizedText(ky: '', ru: '', en: ''),
+          );
+        }
+
         return LotDetailScreen(lot: lot, artist: artist);
       },
     ),
-GoRoute(
-  path: '/payqr/:lotId',
-  builder: (context, state) {
-    final lotId = state.pathParameters['lotId']!;
-    final lotTitle = state.uri.queryParameters['title'] ?? 'Лот $lotId';
-    final startingPrice = state.uri.queryParameters['price'] ?? '0';
-    final artistName = state.uri.queryParameters['artist'] ?? 'Неизвестно';
-    final name = state.uri.queryParameters['name'] ?? '';
-    final phone = state.uri.queryParameters['phone'] ?? '';
-    final email = state.uri.queryParameters['email'] ?? '';
+    GoRoute(
+      path: '/payqr/:lotId',
+      builder: (context, state) {
+        final lotId = state.pathParameters['lotId'] ?? '';
+        final lotTitle = state.uri.queryParameters['title'] ?? 'Лот $lotId';
+        final startingPrice = state.uri.queryParameters['price'] ?? '0';
+        final artistName = state.uri.queryParameters['artist'] ?? 'Неизвестно';
+        final name = state.uri.queryParameters['name'] ?? '';
+        final phone = state.uri.queryParameters['phone'] ?? '';
+        final email = state.uri.queryParameters['email'] ?? '';
 
-    final lot = {
-      'id': lotId,
-      'title': lotTitle,
-      'startingPrice': startingPrice,
-    };
-    final artist = {
-      'name': artistName,
-    };
+        final lot = {
+          'id': lotId,
+          'title': lotTitle,
+          'startingPrice': startingPrice,
+        };
+        final artist = {
+          'name': artistName,
+        };
 
-    return PayQrScreen(
-      lot: lot,
-      artist: artist,
-      name: name,
-      phone: phone,
-      email: email,
-    );
-  },
-),
-
-
-GoRoute(
-  path: '/public-offer',
-  builder: (context, state) => const PublicOfferScreen(),
-),
+        return PayQrScreen(
+          lot: lot,
+          artist: artist,
+          name: name,
+          phone: phone,
+          email: email,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/public-offer',
+      builder: (context, state) => const PublicOfferScreen(),
+    ),
   ],
 );
 
@@ -100,10 +136,9 @@ class _DeeplinkHandlerState extends State<DeeplinkHandler> {
       context.go('/payment/$lotId?amount=$amount&recipient=$recipient');
     }
 
-    // Пример диплинка для лота: quickbid://lot-detail?id=123
+    // Диплинк для лота: quickbid://lot-detail?id=123
     if (uri.pathSegments[0] == 'lot-detail' && uri.pathSegments.length > 1) {
-      // Если понадобится, можно распарсить id и extra
-      // context.go('/lot-detail', extra: {...});
+      // Можно распарсить id и передать extra, если понадобится
     }
   }
 

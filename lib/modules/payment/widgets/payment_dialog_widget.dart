@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_bid/l10n/app_localizations.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
-import 'package:quick_bid/l10n/app_localizations.dart';
+import 'package:quick_bid/modules/localized_text/localized_text.dart';
 
 void showBuyModal({
   required BuildContext context,
@@ -47,8 +44,10 @@ void showBuyModal({
                       children: [
                         SizedBox(height: 40.h), // отступ для крестика
                         Text(
-                          "${loc.buy} ${lot.title[langCode] ?? ''}",
+                          "${loc.buy} ${_getLotName(lot, langCode)}",
                           textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 20.sp,
                             fontWeight: FontWeight.bold,
@@ -61,12 +60,14 @@ void showBuyModal({
                             child: Column(
                               children: [
                                 _buildInputField(
+                                  context,
                                   nameController,
                                   loc.name,
                                   Icons.person_outline,
                                 ),
                                 SizedBox(height: 12.h),
                                 _buildInputField(
+                                  context,
                                   phoneController,
                                   loc.phoneNumber,
                                   Icons.phone_outlined,
@@ -74,6 +75,7 @@ void showBuyModal({
                                 ),
                                 SizedBox(height: 12.h),
                                 _buildInputField(
+                                  context,
                                   emailController,
                                   loc.emailreq,
                                   Icons.email_outlined,
@@ -125,10 +127,10 @@ void showBuyModal({
                                     }
                                     Navigator.pop(context);
                                     GoRouter.of(context).push(
-                                      '/payqr/${Uri.encodeComponent(lot.id.toString())}?'
-                                      'title=${Uri.encodeComponent(lot.title[langCode] ?? '')}&'
-                                      'price=${lot.startingPrice}&'
-                                      'artist=${Uri.encodeComponent(artist.name[langCode] ?? '')}&'
+                                      '/payqr/${Uri.encodeComponent(_getLotId(lot))}?'
+                                      'title=${Uri.encodeComponent(_getLotName(lot, langCode))}&'
+                                      'price=${_getLotPrice(lot)}&'
+                                      'artist=${Uri.encodeComponent(_getArtistName(artist, langCode))}&'
                                       'name=${Uri.encodeComponent(nameController.text)}&'
                                       'phone=${Uri.encodeComponent(phoneController.text)}&'
                                       'email=${Uri.encodeComponent(emailController.text)}',
@@ -169,13 +171,13 @@ void showBuyModal({
 }
 
 Widget _buildInputField(
+  BuildContext context,
   TextEditingController controller,
   String label,
   IconData icon, {
   TextInputType? keyboardType,
 }) {
-  final isDark =
-      WidgetsBinding.instance.window.platformBrightness == Brightness.dark;
+  final isDark = Theme.of(context).brightness == Brightness.dark;
   return TextField(
     controller: controller,
     keyboardType: keyboardType,
@@ -191,4 +193,113 @@ Widget _buildInputField(
       ),
     ),
   );
+}
+
+// Вспомогательные функции для безопасной работы с dynamic типами
+String _getLotId(dynamic lot) {
+  if (lot == null) return '';
+  try {
+    // Если это LotEntity
+    return lot.id?.toString() ?? '';
+  } catch (e) {
+    // Если это Map
+    return (lot as Map<String, dynamic>?)?['id']?.toString() ?? '';
+  }
+}
+
+String _getLotName(dynamic lot, String langCode) {
+  if (lot == null) return '';
+  try {
+    // Если это LotEntity
+    final name = lot.name;
+    if (name != null) {
+      // Если это LocalizedText
+      if (name is LocalizedText) {
+        return name.getByLang(langCode);
+      }
+      // Если это Map
+      if (name is Map<String, dynamic>) {
+        return name[langCode]?.toString() ?? '';
+      }
+    }
+    // Если это Map
+    final map = lot as Map<String, dynamic>?;
+    if (map?['name'] != null) {
+      if (map!['name'] is LocalizedText) {
+        return (map['name'] as LocalizedText).getByLang(langCode);
+      }
+      if (map['name'] is Map<String, dynamic>) {
+        return (map['name'] as Map<String, dynamic>)[langCode]?.toString() ?? '';
+      }
+    }
+    return map?['title']?.toString() ?? '';
+  } catch (e) {
+    // Если это Map с прямым title
+    try {
+      final map = lot as Map<String, dynamic>?;
+      return map?['title']?.toString() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+}
+
+String _getLotPrice(dynamic lot) {
+  if (lot == null) return '0';
+  try {
+    // Если это LotEntity
+    final price = lot.price;
+    if (price != null) {
+      return price.toString();
+    }
+    // Если это Map
+    final map = lot as Map<String, dynamic>?;
+    return map?['price']?.toString() ?? map?['startingPrice']?.toString() ?? '0';
+  } catch (e) {
+    // Если это Map
+    try {
+      final map = lot as Map<String, dynamic>?;
+      return map?['price']?.toString() ?? map?['startingPrice']?.toString() ?? '0';
+    } catch (_) {
+      return '0';
+    }
+  }
+}
+
+String _getArtistName(dynamic artist, String langCode) {
+  if (artist == null) return '';
+  try {
+    // Если это ArtistEntity
+    final name = artist.name;
+    if (name != null) {
+      // Если это LocalizedText
+      if (name is LocalizedText) {
+        return name.getByLang(langCode);
+      }
+      // Если это Map
+      if (name is Map<String, dynamic>) {
+        return name[langCode]?.toString() ?? '';
+      }
+    }
+    // Если это Map
+    final map = artist as Map<String, dynamic>?;
+    if (map?['name'] != null) {
+      if (map!['name'] is LocalizedText) {
+        return (map['name'] as LocalizedText).getByLang(langCode);
+      }
+      if (map['name'] is Map<String, dynamic>) {
+        return (map['name'] as Map<String, dynamic>)[langCode]?.toString() ?? '';
+      }
+      return map['name']?.toString() ?? '';
+    }
+    return map?['name']?.toString() ?? '';
+  } catch (e) {
+    // Если это Map с прямым name
+    try {
+      final map = artist as Map<String, dynamic>?;
+      return map?['name']?.toString() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
 }
